@@ -1,14 +1,33 @@
 package com.engine.model;
 
+import java.util.Comparator;
 import java.util.Objects;
 
-public class Order {
+public class Order implements Comparable<Order>{
     private final String orderId;
     private final String symbol;
     private final OrderType type;
     private final double price;
     private int quantity;
     private final long timestamp;
+
+    // Highest price first; if equal, earliest timestamp first
+    public static final Comparator<Order> BUY_COMPARATOR = (o1, o2) -> {
+        int priceCompare = Double.compare(o2.getPrice(), o1.getPrice());
+        if(priceCompare != 0){
+            return priceCompare;
+        }
+        return Long.compare(o1.getTimestamp(), o2.getTimestamp());
+    };
+
+    // lowest price first; if equal, earliest timestamp first
+    public static final Comparator<Order> SELL_COMPARATOR = (o1, o2) -> {
+        int priceCompare = Double.compare(o1.getPrice(), o2.getPrice());
+        if(priceCompare != 0){
+            return priceCompare;
+        }
+        return Long.compare(o1.getTimestamp(), o1.getTimestamp());
+    };
 
     public Order(String orderId, String symbol, OrderType type, double price, int quantity, long timestamp) {
         this.orderId = orderId;
@@ -41,6 +60,16 @@ public class Order {
 
     public long getTimestamp() {
         return timestamp;
+    }
+
+    public void setQuantity(int quantity){
+        this.quantity = quantity;
+    }
+
+    @Override 
+    public int compareTo(Order other){
+        // Default choronological ordering
+        return Long.compare(this.timestamp, other.timestamp);
     }
 
     @Override
