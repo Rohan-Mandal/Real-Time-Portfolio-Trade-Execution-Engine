@@ -38,6 +38,8 @@ public class Order implements Comparable<Order>{
         this.timestamp = System.currentTimeMillis();
     }
 
+    // Poison-pill sentinel order to cleanly terminate consumer
+    public static final Order POISON_PILL = new Order("POISON_PILL", "SENTINEL", OrderType.BUY, 0.0, 0, 0L);
     public String getOrderId() {
         return orderId;
     }
