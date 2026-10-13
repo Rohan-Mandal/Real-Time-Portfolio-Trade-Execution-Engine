@@ -11,6 +11,7 @@ import com.engine.exception.InvalidOrderException;
 import com.engine.exception.BufferOverflowException;
 import com.engine.model.Order;
 import com.engine.model.Trade;
+import com.engine.service.AnalyticsService;
 import com.engine.service.MatchingEngine;
 import com.engine.service.OrderBook;
 import com.engine.service.OrderProducer;
@@ -129,81 +130,156 @@ public class Main {
          * e.printStackTrace();
          * }
          */
-        System.out.println("=== Phase 3: Testing Multithreaded Ingestion & Matching ===");
+        /*
+         * System.out.
+         * println("=== Phase 3: Testing Multithreaded Ingestion & Matching ===");
+         * 
+         * // Bounded queue with capacity of 100
+         * MatchingEngine engine = new MatchingEngine(100);
+         * engine.start();
+         * 
+         * // Feed 1: Institutional Seller for AAPL & MSFT
+         * List<String> brokerFeed1 = Arrays.asList(
+         * "P1_01|AAPL|SELL|180.00|50",
+         * "P1_02|AAPL|SELL|181.50|30",
+         * "P1_03|MSFT|SELL|420.00|100",
+         * "P1_04|AAPL|SELL|179.50|20");
+         * 
+         * // Feed 2: Retail Buyer aggressively crossing the spread
+         * List<String> brokerFeed2 = Arrays.asList(
+         * "P2_01|AAPL|BUY|181.00|40", // Crosses 179.50 and 180.00
+         * "P2_02|MSFT|BUY|418.00|20", // Resting bid (no match yet)
+         * "P2_03|MSFT|BUY|421.00|50" // Crosses 420.00
+         * );
+         * 
+         * // Feed 3: High-frequency market maker adding liquidity
+         * List<String> brokerFeed3 = Arrays.asList(
+         * "P3_01|GOOGL|BUY|160.00|200",
+         * "P3_02|GOOGL|SELL|162.00|200",
+         * "P3_03|AAPL|BUY|185.00|40" // Aggressive buy eating remaining asks
+         * );
+         * 
+         * // Execute producers across a thread pool
+         * ExecutorService producerPool = Executors.newFixedThreadPool(3);
+         * 
+         * long startTime = System.currentTimeMillis();
+         * producerPool.submit(new OrderProducer("FEED-NORTH-AMERICA", engine,
+         * brokerFeed1));
+         * producerPool.submit(new OrderProducer("FEED-EUROPE", engine, brokerFeed2));
+         * producerPool.submit(new OrderProducer("FEED-ASIA", engine, brokerFeed3));
+         * 
+         * // Await producer completion
+         * producerPool.shutdown();
+         * boolean producersDone = false;
+         * try {
+         * producersDone = producerPool.awaitTermination(5, TimeUnit.SECONDS);
+         * } catch (InterruptedException e) {
+         * System.err.println("Main thread interrupted while waiting for producers.");
+         * Thread.currentThread().interrupt(); // Restore interrupted status
+         * }
+         * 
+         * if (producersDone) {
+         * System.out.println("\nAll producers have completed order transmission.");
+         * } else {
+         * System.err.
+         * println("Warning: Producer pool timed out before finishing all tasks.");
+         * }
+         * 
+         * // Stop matching engine cleanly
+         * engine.stop();
+         * long duration = System.currentTimeMillis() - startTime;
+         * 
+         * System.out.println("\n=== Final Engine Execution Summary ===");
+         * System.out.println("Processing Time: " + duration + " ms");
+         * System.out.println("Total Executed Trades: " +
+         * engine.getGlobalTradeLedger().size());
+         * 
+         * for (Trade trade : engine.getGlobalTradeLedger()) {
+         * System.out.println("  " + trade);
+         * }
+         * 
+         * OrderBook aaplBook = engine.getOrderBook("AAPL");
+         * if (aaplBook != null) {
+         * System.out.println("\nAAPL Remaining Book State:");
+         * System.out.println("  Remaining Bids: " + aaplBook.getBuyOrderCount());
+         * System.out.println("  Remaining Asks: " + aaplBook.getSellOrderCount());
+         * }
+         * 
+         * OrderBook msftBook = engine.getOrderBook("MSFT");
+         * if (msftBook != null) {
+         * System.out.println("\nMSFT Remaining Book State:");
+         * System.out.println("  Remaining Bids: " + msftBook.getBuyOrderCount());
+         * System.out.println("  Remaining Asks: " + msftBook.getSellOrderCount());
+         * }
+         */
+        System.out.println("=== Phase 4: Streams, Lambdas & Functional Listeners ===");
 
-        // Bounded queue with capacity of 100
-        MatchingEngine engine = new MatchingEngine(100);
+        MatchingEngine engine = new MatchingEngine(50);
+
+        // register lambda-based tradeListener
+        engine.addTradeListener(trade -> System.out.printf("  [LISTENER ALERT] %s executed: %d shares of %s at $%.2f%n",
+                trade.getTradeId(), trade.getQuantity(), trade.getSymbol(), trade.getPrice()));
+
         engine.start();
 
-        // Feed 1: Institutional Seller for AAPL & MSFT
-        List<String> brokerFeed1 = Arrays.asList(
-                "P1_01|AAPL|SELL|180.00|50",
-                "P1_02|AAPL|SELL|181.50|30",
-                "P1_03|MSFT|SELL|420.00|100",
-                "P1_04|AAPL|SELL|179.50|20");
+        // Sample multi-asset order batch
+        List<String> orderBatch1 = Arrays.asList(
+                "O1|AAPL|SELL|180.00|100",
+                "O2|MSFT|SELL|420.00|50",
+                "O3|TSLA|SELL|240.00|80",
+                "O4|NVDA|SELL|950.00|30");
 
-        // Feed 2: Retail Buyer aggressively crossing the spread
-        List<String> brokerFeed2 = Arrays.asList(
-                "P2_01|AAPL|BUY|181.00|40", // Crosses 179.50 and 180.00
-                "P2_02|MSFT|BUY|418.00|20", // Resting bid (no match yet)
-                "P2_03|MSFT|BUY|421.00|50" // Crosses 420.00
+        List<String> ordersBatch2 = Arrays.asList(
+                "O5|AAPL|BUY|180.00|40", // Partial match
+                "O6|MSFT|BUY|420.00|50", // Full match
+                "O7|TSLA|BUY|245.00|30", // Crossing match
+                "O8|NVDA|BUY|960.00|30", // High value match
+                "O9|AAPL|BUY|182.00|60" // Clears remainder of O1
         );
 
-        // Feed 3: High-frequency market maker adding liquidity
-        List<String> brokerFeed3 = Arrays.asList(
-                "P3_01|GOOGL|BUY|160.00|200",
-                "P3_02|GOOGL|SELL|162.00|200",
-                "P3_03|AAPL|BUY|185.00|40" // Aggressive buy eating remaining asks
-        );
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        pool.submit(new OrderProducer("FEED-1", engine, orderBatch1));
+        pool.submit(new OrderProducer("FEED-2", engine, ordersBatch2));
+        pool.shutdown();
 
-        // Execute producers across a thread pool
-        ExecutorService producerPool = Executors.newFixedThreadPool(3);
-
-        long startTime = System.currentTimeMillis();
-        producerPool.submit(new OrderProducer("FEED-NORTH-AMERICA", engine, brokerFeed1));
-        producerPool.submit(new OrderProducer("FEED-EUROPE", engine, brokerFeed2));
-        producerPool.submit(new OrderProducer("FEED-ASIA", engine, brokerFeed3));
-
-        // Await producer completion
-        producerPool.shutdown();
-        boolean producersDone = false;
         try {
-            producersDone = producerPool.awaitTermination(5, TimeUnit.SECONDS);
+            pool.awaitTermination(3, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            System.err.println("Main thread interrupted while waiting for producers.");
-            Thread.currentThread().interrupt(); // Restore interrupted status
+            Thread.currentThread().interrupt();
         }
-
-        if (producersDone) {
-            System.out.println("\nAll producers have completed order transmission.");
-        } else {
-            System.err.println("Warning: Producer pool timed out before finishing all tasks.");
-        }
-
-        // Stop matching engine cleanly
         engine.stop();
-        long duration = System.currentTimeMillis() - startTime;
 
-        System.out.println("\n=== Final Engine Execution Summary ===");
-        System.out.println("Processing Time: " + duration + " ms");
-        System.out.println("Total Executed Trades: " + engine.getGlobalTradeLedger().size());
+        // Initialize Analytics Service on executed trades
+        List<Trade> allTrades = engine.getGlobalTradeLedger();
+        AnalyticsService analytics = new AnalyticsService(allTrades);
 
-        for (Trade trade : engine.getGlobalTradeLedger()) {
-            System.out.println("  " + trade);
-        }
+        System.out.println("\n================ ANALYTICS REPORT ================");
 
-        OrderBook aaplBook = engine.getOrderBook("AAPL");
-        if (aaplBook != null) {
-            System.out.println("\nAAPL Remaining Book State:");
-            System.out.println("  Remaining Bids: " + aaplBook.getBuyOrderCount());
-            System.out.println("  Remaining Asks: " + aaplBook.getSellOrderCount());
-        }
+        // 1. Total Turnover
+        System.out.printf("Total Turnover: $%,.2f%n", analytics.calculateTotalTurnover());
 
-        OrderBook msftBook = engine.getOrderBook("MSFT");
-        if (msftBook != null) {
-            System.out.println("\nMSFT Remaining Book State:");
-            System.out.println("  Remaining Bids: " + msftBook.getBuyOrderCount());
-            System.out.println("  Remaining Asks: " + msftBook.getSellOrderCount());
-        }
+        // 2. Volume by symbol
+        System.out.println("\nTotal Shares trade by Symbol:");
+        analytics.getVolumeBySymbol()
+                .forEach((symbol, qty) -> System.out.println("  " + symbol + ": " + qty + " shares"));
+
+        // 3. Average Execution Price by Symbol
+        System.out.println("\nAverage Execution Price by Symbol:");
+        analytics.getAveragePriceBySymbol()
+                .forEach((symbol, avgPrice) -> System.out.printf("  %s: $%.2f%n", symbol, avgPrice));
+
+        // 4. Filter High Value Trades (> $15,000)
+        System.out.println("\nHigh-Value Trades (>= $15,000):");
+        analytics.findHighValueTrades(15000.0)
+                .forEach(t -> System.out.printf("  %s ($%,.2f)%n", t.getTradeId(), (t.getPrice() * t.getQuantity())));
+
+        // 5. Optional queries
+        System.out.println("\nMarket Extremes (Optional Lookups):");
+        analytics.getHighestPriceTrade().ifPresent(
+                t -> System.out.printf("  Highest Price Traded: %s at $%.2f%n", t.getSymbol(), t.getPrice()));
+
+        analytics.getMostTradeSymbol().ifPresent(entry -> System.out
+                .println("  Most Traded Symbol: " + entry.getKey() + " (" + entry.getValue() + " shares)"));
+
     }
 }

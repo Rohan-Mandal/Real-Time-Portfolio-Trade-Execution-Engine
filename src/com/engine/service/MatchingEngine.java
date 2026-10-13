@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MatchingEngine implements Runnable {
@@ -18,6 +19,7 @@ public class MatchingEngine implements Runnable {
     private final List<Trade> globalTradeLedger;
     private final AtomicBoolean isRunning;
     private Thread consumerThread;
+    private final List<TradeListener> listeners = new CopyOnWriteArrayList<>();
 
     public MatchingEngine(int queueCapacity) {
         this.inboundQueue = new ArrayBlockingQueue<>(queueCapacity);
@@ -82,6 +84,8 @@ public class MatchingEngine implements Runnable {
             globalTradeLedger.addAll(trades);
             for (Trade t : trades) {
                 System.out.println("   >>>  [EXECUTION]  " + t);
+                // Brodcase to functional listeners
+                listeners.forEach(listener -> listener.onTradeExecuted(t));
             }
         }
     }
@@ -116,5 +120,11 @@ public class MatchingEngine implements Runnable {
 
     public int getPendingQueueSize() {
         return inboundQueue.size();
+    }
+
+    public void addTradeListener(TradeListener listener){
+        if (listener != null) {
+            listeners.add(listener);
+        }
     }
 }
