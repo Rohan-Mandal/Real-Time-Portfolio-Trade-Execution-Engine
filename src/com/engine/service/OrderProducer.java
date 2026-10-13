@@ -5,19 +5,19 @@ import java.util.List;
 import com.engine.model.Order;
 import com.engine.util.StringParserUtil;
 
-public class OrderProducer implements Runnable{
+public class OrderProducer implements Runnable {
     private final String producerID;
     private final MatchingEngine engine;
     private final List<String> rawOrderLines;
 
-    public OrderProducer(String producerId, MatchingEngine engine, List<String> rawOrderLines){
+    public OrderProducer(String producerId, MatchingEngine engine, List<String> rawOrderLines) {
         this.producerID = producerId;
         this.engine = engine;
         this.rawOrderLines = rawOrderLines;
     }
 
-    @Override 
-    public void run(){
+    @Override
+    public void run() {
         System.out.println("[" + Thread.currentThread().getName() + "] Producer " + producerID + " started.");
 
         for (String line : rawOrderLines) {
@@ -30,7 +30,7 @@ public class OrderProducer implements Runnable{
                 Thread.currentThread().interrupt();
                 System.err.println("[" + producerID + "] Ingestion interrupted.");
                 break;
-            } catch(Exception e){
+            } catch (Exception e) {
                 System.err.println("[" + producerID + "] Skipped invalid order string: " + e.getMessage());
             }
         }

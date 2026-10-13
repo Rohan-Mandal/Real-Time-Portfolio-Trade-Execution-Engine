@@ -122,7 +122,7 @@ public class MatchingEngine implements Runnable {
         return inboundQueue.size();
     }
 
-    public void addTradeListener(TradeListener listener){
+    public void addTradeListener(TradeListener listener) {
         if (listener != null) {
             listeners.add(listener);
         }
